@@ -18,10 +18,10 @@ public class Server {
     }
 
     public void handleMessage(Message msg) {
+        System.out.println("Message received from " + msg.senderId);
         // Message Handler
-
-        if (msg.messageType == MessageType.APPLICATION) {
-            synchronized (node) {
+        switch (msg.messageType) {
+            case MessageType.APPLICATION:
                 wakeNodeIfPassive(msg);
                 for (int i = 0; i < node.totalNodes; i++) {
                     int value = Math.max(node.clock.get(i), msg.clock.get(i));
@@ -29,25 +29,37 @@ public class Server {
                 }
                 node.rcvClk.set(msg.senderId, node.rcvClk.get(msg.senderId) + 1);
                 node.msgReceived += 1;
-            }
-        } else if (msg.messageType == MessageType.MARKER) {
-            synchronized (node) {
+                break;
+            case MessageType.CUSTOM_END:
+                node.custom_end++;
+
+                System.out.println("Node Id:" + node.id + " | Neighbour: " + node.neighbours.size());
+                System.out.println("# of Custom End: " + node.custom_end + " | # of Neighbours: "
+                        + node.neighbours.get(node.id).size());
+                if (node.custom_end == node.neighbours.get(node.id).size())
+                    node.printNodeVectorClock();
+
+                break;
+            case MessageType.MARKER:
+
                 System.out.println("[MARKER : received] Received MARKER message from NODE: " + msg.senderId);
                 // this.app.snapshot.receiveMarkerMessageFromParent(msg);
-            }
-        } else if (msg.messageType == MessageType.MARKER_REJECTION) {
-            System.out.println("[MARKER_REJECTION : received] Received MARKER_REJECTION message from " + msg.senderId);
-            // this.app.snapshot.receiveMarkerRejectionMessage(msg);
-        } else if (msg.messageType == MessageType.MARKER_REPLY) {
-            synchronized (node) {
+                break;
+            case MessageType.MARKER_REJECTION:
+                System.out.println(
+                        "[MARKER_REJECTION : received] Received MARKER_REJECTION message from " + msg.senderId);
+                // this.app.snapshot.receiveMarkerRejectionMessage(msg);
+                break;
+            case MessageType.MARKER_REPLY:
+
                 System.out.println("[MARKER_REPLY : received] Received MARKER_REPLY message from " + msg.senderId);
                 // this.app.snapshot.receiveMarkerRepliesFromChildren(msg);
-            }
-        } else if (msg.messageType == MessageType.END_SNAPSHOT) {
-            synchronized (node) {
+                break;
+            case MessageType.END_SNAPSHOT:
+
                 System.out.println("[END_SNAPSHOT: received] Received END_SNAPSHOT message from " + msg.senderId);
                 // this.app.snapshot.receiveSnapshotResetMessage(msg);
-            }
+                break;
         }
     }
 
@@ -68,11 +80,11 @@ public class Server {
 
                             try {
                                 // Reading Incoming Message.
-
                                 int length = dataInputStream.readInt();
                                 byte[] buffer = new byte[length];
                                 dataInputStream.readFully(buffer);
                                 Message msg = Message.fromByteArray(buffer);
+                                // node.rcvBefClk.set(msg.senderId, node.rcvBefClk.get(msg.senderId) + 1);
                                 synchronized (node) {
                                     handleMessage(msg);
                                 }

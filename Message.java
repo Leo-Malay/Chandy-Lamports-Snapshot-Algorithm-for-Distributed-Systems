@@ -9,7 +9,8 @@ enum MessageType {
     END_SNAPSHOT,
     DEMARKER,
     DEMARKER_REPLY,
-    DEMARKER_REJECTION
+    DEMARKER_REJECTION,
+    CUSTOM_END
 };
 
 public class Message implements Serializable {
@@ -39,6 +40,10 @@ public class Message implements Serializable {
 
     public Message() {
         this.messageType = MessageType.MARKER_REJECTION;
+    }
+
+    public Message(int senderId, int n) {
+        this.messageType = MessageType.CUSTOM_END;
     }
 
     public Message(int senderId, Map<Integer, Vector<Integer>> localSnapshots, boolean state,

@@ -38,19 +38,21 @@ public class Client {
     public void sendApplicationMessageLogic() {
         while (true) {
             if (node.msgSent >= node.maxNumber) {
-                System.out.println("[STATE CHANGE] Node sent maximum number of messages. Going permanently passive");
+                System.out.println("[INFO] Node passive permanently");
                 node.state = false;
-                node.printNodeVectorClock();
+                sendCutomEnd();
                 break;
             }
 
             if (node.state == true) {
                 Random random = new Random();
                 int count = random.nextInt(node.maxPerActive - node.minPerActive + 1) + node.minPerActive;
-                sendBatchMessages(count);
+                synchronized (node) {
+                    sendBatchMessages(count);
+                }
             } else {
                 try {
-                    System.out.println(String.format("Node is temporarily passive (Messages sent: [%d/%d]",
+                    System.out.println(String.format("Node is Passive (Msg sent: [%d/%d]",
                             node.msgSent, node.maxNumber));
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
@@ -77,6 +79,7 @@ public class Client {
 
             int randomNumber = random.nextInt(this.channelList.size());
             int destination = node.neighbours.get(node.id).get(randomNumber);
+            System.out.println("Sending Node " + destination + " a  messages.");
             node.sndClk.set(destination, node.sndClk.get(destination) + 1);
             Socket channel = channelList.get(randomNumber);
 
@@ -84,9 +87,10 @@ public class Client {
                     "Hi from %s! (%d/%d)", node.name, node.msgSent + 1, node.maxNumber);
             Message msg = new Message(node.id, node.clock, messageString);
 
-            synchronized (node) { // This block increments the value of vector clock after sending a message
-                Client.send_message(msg, channel, node);
-            }
+            // synchronized (node) { // This block increments the value of vector clock
+            // after sending a message
+            Client.send_message(msg, channel, node);
+            // }
 
             try {
                 Thread.sleep(node.minSendDelay);
@@ -102,6 +106,22 @@ public class Client {
         System.out.println(String.format("[DEBUG][Node:%d] (%d) After sending: ", node.id, node.msgSent) + node.clock);
         node.changeState();
 
+    }
+
+    public void sendCutomEnd() {
+        for (Socket channel : this.channelList) {
+            Message msg = new Message(node.id, 0);
+            Client.send_message(msg, channel, node);
+        }
+
+        try {
+            Thread.sleep(node.minSendDelay);
+            // System.out.println(String.format("Delaying sending messages for %d
+            // milliseconds", node.minSendDelay));
+            // System.out.println();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void send_message(Message msg, Socket channel, Node node) {

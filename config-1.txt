@@ -1,0 +1,6 @@
+# six global parameters (see above)
+2 6 10 100 2000 15
+0 LeoMalay 1232 # nodeID hostName listen Port For local my pc node name = "LeoMalay"
+1 LeoMalay 1233
+1 # space delimited list of neighbors for node 0
+0# space delimited list of neighbors for node 1
