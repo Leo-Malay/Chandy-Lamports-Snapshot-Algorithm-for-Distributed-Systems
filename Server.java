@@ -32,10 +32,6 @@ public class Server {
                 break;
             case MessageType.CUSTOM_END:
                 node.custom_end++;
-
-                System.out.println("Node Id:" + node.id + " | Neighbour: " + node.neighbours.size());
-                System.out.println("# of Custom End: " + node.custom_end + " | # of Neighbours: "
-                        + node.neighbours.get(node.id).size());
                 if (node.custom_end == node.neighbours.get(node.id).size())
                     node.printNodeVectorClock();
 
