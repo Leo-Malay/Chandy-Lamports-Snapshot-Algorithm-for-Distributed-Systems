@@ -1,5 +1,7 @@
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.regex.*;
 
@@ -40,8 +42,13 @@ public class Node {
     }
 
     public static void main(String[] args) {
+
         // Init Node
-        Node node = new Node(Integer.parseInt(args[0]));
+        Node node;
+        if (args.length > 0)
+            node = new Node(Integer.parseInt(args[0]));
+        else
+            node = new Node(-1);
         // Parse the config file
         node.readConfig();
         // Init Vector Clock;
@@ -74,6 +81,14 @@ public class Node {
         String CONFIG_FILE_NAME = "config.txt";
         String line;
         int configLine = 0;
+        String localHost = "";
+        // Get Host Name
+        try {
+            localHost = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            System.out.println(e);
+        }
+
         // REGEX Pattern
         Pattern REGEX_PATTERN_CONFIG = Pattern.compile("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)");
 
@@ -102,9 +117,14 @@ public class Node {
                     String[] nodeConf = line.split(" ");
                     // Extracting data for read node.
                     int node_Id = Integer.parseInt(nodeConf[0]);
-                    String node_Host = nodeConf[1];
+                    // String node_Host = nodeConf[1];
+                    String node_Host = nodeConf[1] + ".utdallas.edu";
                     int node_Port = Integer.parseInt(nodeConf[2]);
 
+                    System.out.println("NodeName: " + localHost + " | ReadName: " + node_Host);
+                    if (this.id == -1 && node_Host.equals(localHost)) {
+                        this.id = node_Id;
+                    }
                     List<String> valueA = new ArrayList<>();
                     valueA.add(node_Host);
                     valueA.add(String.valueOf(node_Port));
