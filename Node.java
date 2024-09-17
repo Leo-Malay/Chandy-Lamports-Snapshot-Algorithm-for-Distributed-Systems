@@ -25,7 +25,6 @@ public class Node {
     Vector<Integer> clock = new Vector<>();
     Vector<Integer> sndClk = new Vector<>();
     Vector<Integer> rcvClk = new Vector<>();
-    Vector<Integer> rcvBefClk = new Vector<>();
 
     // Components
     Server server;
@@ -157,7 +156,6 @@ public class Node {
             this.clock.add(0);
             this.sndClk.add(0);
             this.rcvClk.add(0);
-            this.rcvBefClk.add(0);
         }
     }
 
@@ -194,8 +192,7 @@ public class Node {
         System.out.println("======= Node Vector Clock =======");
         for (int i = 0; i < totalNodes; i++) {
             System.out.println("NodeId: " + i + " | Msg: " + clock.get(i) + " | Send: " + sndClk.get(i) + " | Recieve: "
-                    + rcvClk.get(i) + " | Recieve Before: "
-                    + rcvBefClk.get(i));
+                    + rcvClk.get(i));
             totalSent += sndClk.get(i);
             totalReceive += rcvClk.get(i);
         }

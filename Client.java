@@ -26,21 +26,20 @@ public class Client {
                 client.setKeepAlive(true);
                 channelList.add(client);
                 node.idToChannelMap.put(node.hostToId_PortMap.get(host).get(0), client);
-                System.out.println("[INFO] Connected to " + host + ":" + port);
+                System.out.println("Connected to " + host + ":" + port);
             } catch (IOException error) {
-                System.out.println("[ERRO] Unable to connect to " + host + ":" + port);
-                // error.printStackTrace();
+                System.out.println("[ERR] Unable to connect to " + host + ":" + port);
             }
         }
         return channelList;
     }
 
-    public void sendApplicationMessageLogic() {
+    public void mapProtocol() {
         while (true) {
             if (node.msgSent >= node.maxNumber) {
-                System.out.println("[INFO] Node passive permanently");
+                System.out.println("NODE STATE (ACTIVE -> PASSIVE) Permanently");
                 node.state = false;
-                sendCutomEnd();
+                sendCustomEnd();
                 break;
             }
 
@@ -48,91 +47,73 @@ public class Client {
                 Random random = new Random();
                 int count = random.nextInt(node.maxPerActive - node.minPerActive + 1) + node.minPerActive;
                 synchronized (node) {
-                    sendBatchMessages(count);
+                    sendBulkMsg(count);
                 }
             } else {
                 try {
-                    System.out.println(String.format("Node is Passive (Msg sent: [%d/%d]",
-                            node.msgSent, node.maxNumber));
+                    System.out
+                            .println(String.format("NODE STATE (ACTIVE -> PASSIVE) after sending %d messages out of %d",
+                                    node.msgSent, node.maxNumber));
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
         }
-        ;
-        // System.out.println("Exiting sendLogic() method.");
     }
 
-    public void sendBatchMessages(int count) {
+    public void sendBulkMsg(int count) {
 
-        // This method sends 'count' number of messages to a randomly chosen neighbor
-        System.out.println(String.format("Sending a batch of %d messages", count));
+        System.out.println(String.format("Sending %d messages to neighbours...", count));
         Random random = new Random();
 
         for (int i = 0; i < count; i++) {
-
             if (node.msgSent >= node.maxNumber) {
                 node.state = false;
                 break;
             }
-
             int randomNumber = random.nextInt(this.channelList.size());
             int destination = node.neighbours.get(node.id).get(randomNumber);
-            System.out.println("Sending Node " + destination + " a  messages.");
+            System.out.println("Sent a message to " + destination);
             node.sndClk.set(destination, node.sndClk.get(destination) + 1);
             Socket channel = channelList.get(randomNumber);
-
             String messageString = String.format(
-                    "Hi from %s! (%d/%d)", node.name, node.msgSent + 1, node.maxNumber);
+                    "Hello NODE from %s! (%d/%d)", node.name, node.msgSent + 1, node.maxNumber);
             Message msg = new Message(node.id, node.clock, messageString);
-
-            // synchronized (node) { // This block increments the value of vector clock
-            // after sending a message
-            Client.send_message(msg, channel, node);
-            // }
+            Client.sendMsg(msg, channel, node);
 
             try {
                 Thread.sleep(node.minSendDelay);
-                // System.out.println(String.format("Delaying sending messages for %d
-                // milliseconds", node.minSendDelay));
-                // System.out.println();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-        // System.out.println("[STATE CHANGE] Flipping node state from active to passive
-        // because a batch of messages are sent to neighbors.");
-        System.out.println(String.format("[DEBUG][Node:%d] (%d) After sending: ", node.id, node.msgSent) + node.clock);
         node.changeState();
 
     }
 
-    public void sendCutomEnd() {
+    public void sendCustomEnd() {
         for (Socket channel : this.channelList) {
             Message msg = new Message(node.id, 0);
-            Client.send_message(msg, channel, node);
+            Client.sendMsg(msg, channel, node);
         }
 
         try {
             Thread.sleep(node.minSendDelay);
-            // System.out.println(String.format("Delaying sending messages for %d
-            // milliseconds", node.minSendDelay));
-            // System.out.println();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
 
-    public static void send_message(Message msg, Socket channel, Node node) {
+    public static void sendMsg(Message msg, Socket channel, Node node) {
 
         try {
-            OutputStream out = channel.getOutputStream();
-            DataOutputStream dataOut = new DataOutputStream(out);
+            OutputStream outStream = channel.getOutputStream();
+            DataOutputStream dataOut = new DataOutputStream(outStream);
 
-            byte[] messageBytes = msg.toMessageBytes();
-            dataOut.writeInt(messageBytes.length); // Send message length
-            dataOut.write(messageBytes); // Send message
+            byte[] msgBytes = msg.toMessageBytes();
+            dataOut.writeInt(msgBytes.length);
+            dataOut.write(msgBytes); // Send message
             dataOut.flush();
 
             if (msg.messageType == MessageType.APPLICATION) {
@@ -147,12 +128,13 @@ public class Client {
 
     public void init() {
         Thread client = new Thread(() -> {
-            System.out.println("[INFO] Client Starting...");
+            System.out.println("Node Client Starting...");
             try {
                 if (node.id == 0) {
                     node.changeState();
                 }
-                node.client.sendApplicationMessageLogic();
+                System.out.println("NODE Init Map Protocol...");
+                node.client.mapProtocol();
             } catch (Exception e) {
                 e.printStackTrace();
             }

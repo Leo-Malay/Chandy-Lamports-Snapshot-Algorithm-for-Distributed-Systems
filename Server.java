@@ -18,7 +18,8 @@ public class Server {
     }
 
     public void handleMessage(Message msg) {
-        System.out.println("Message received from " + msg.senderId);
+        if (msg.senderId != -1)
+            System.out.println("Message received from NODE " + msg.senderId);
         // Message Handler
         switch (msg.messageType) {
             case MessageType.APPLICATION:
@@ -62,7 +63,7 @@ public class Server {
     public void listen() {
         try {
             this.server = new ServerSocket(port);
-            System.out.println("[INFO]: Server started on " + port);
+            System.out.println("Node Server started at port: " + port);
 
             while (true) {
                 Socket client = server.accept();
@@ -80,12 +81,11 @@ public class Server {
                                 byte[] buffer = new byte[length];
                                 dataInputStream.readFully(buffer);
                                 Message msg = Message.fromByteArray(buffer);
-                                // node.rcvBefClk.set(msg.senderId, node.rcvBefClk.get(msg.senderId) + 1);
                                 synchronized (node) {
                                     handleMessage(msg);
                                 }
                             } catch (EOFException e) {
-                                System.out.println("[ERROR]: Connection closed by client.");
+                                System.out.println("[ERR] Connection closed by client");
                                 break;
                             } catch (IOException | ClassNotFoundException e) {
                                 e.printStackTrace();
@@ -109,7 +109,7 @@ public class Server {
 
     public void init() {
         Thread server = new Thread(() -> {
-            System.out.println("[INFO] Server Starting...");
+            System.out.println("Node Server Starting...");
             try {
                 node.server.listen();
             } catch (Exception e) {
