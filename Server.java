@@ -32,7 +32,7 @@ public class Server {
             node.msgReceived += 1;
         } else if (msg.messageType == MessageType.CUSTOM_END) {
             node.custom_end++;
-            if (node.custom_end == node.neighbours.get(node.id).size())
+            if (node.pem_passive && node.custom_end == node.neighbours.get(node.id).size())
                 node.printNodeVectorClock();
 
         }

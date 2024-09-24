@@ -40,6 +40,7 @@ public class Client {
                 System.out.println("NODE STATE (ACTIVE -> PASSIVE) Permanently");
                 node.state = false;
                 sendCustomEnd();
+                node.pem_passive = true;
                 break;
             }
 
@@ -99,7 +100,10 @@ public class Client {
         }
 
         try {
+            node.pem_passive = true;
             Thread.sleep(node.minSendDelay);
+            if (node.pem_passive && node.custom_end == node.neighbours.get(node.id).size())
+                node.printNodeVectorClock();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

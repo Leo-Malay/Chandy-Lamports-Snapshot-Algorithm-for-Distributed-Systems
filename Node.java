@@ -23,6 +23,7 @@ public class Node {
     int msgReceived = 0;
     int custom_end = 0;
     boolean state = false;
+    boolean pem_passive = false;
 
     Vector<Integer> clock = new Vector<>();
     Vector<Integer> sndClk = new Vector<>();
@@ -31,6 +32,7 @@ public class Node {
     // Components
     Server server;
     Client client;
+    ChandyLamport snapshot;
 
     // Helper
     Map<String, List<Integer>> hostToId_PortMap = new HashMap<>();
@@ -45,10 +47,10 @@ public class Node {
 
         // Init Node
         Node node;
-        if (args.length > 0)
-            node = new Node(Integer.parseInt(args[0]));
-        else
-            node = new Node(-1);
+        // if (args.length > 0)
+        // node = new Node(Integer.parseInt(args[0]));
+        // else
+        node = new Node(-1);
         // Parse the config file
         node.readConfig();
         // Init Vector Clock;
@@ -61,24 +63,37 @@ public class Node {
         node.server = new Server(node.getPort(), node);
         node.server.init();
         try {
-            Thread.sleep(5000);
+            System.out.println("Waiting for 10sec other node.server to setup");
+            Thread.sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         // Client
         node.client = new Client(node);
         try {
-            Thread.sleep(5000);
+            System.out.println("Waiting for 10sec other node.client to setup");
+            Thread.sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         node.client.init();
 
+        // Chandy Lamport Protocol
+        node.snapshot = new ChandyLamport(node);
+        try {
+            if (node.id == 0) {
+                node.snapshot.initSpanningTree();
+                System.out.println("Chandy Lamport protocol initiated");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void readConfig() {
         // Declring Variables
-        String CONFIG_FILE_NAME = "config.txt";
+        String CONFIG_FILE_NAME = "aos-project1/config.txt";
         String line;
         int configLine = 0;
         String localHost = "";

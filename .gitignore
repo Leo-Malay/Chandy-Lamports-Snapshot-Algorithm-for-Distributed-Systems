@@ -1,3 +1,4 @@
 /*.class
 /*.txt
 !config.txt
+/SUBMISSION/*
