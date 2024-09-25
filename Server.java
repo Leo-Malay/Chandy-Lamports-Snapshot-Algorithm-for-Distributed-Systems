@@ -19,7 +19,7 @@ public class Server {
 
     public void handleMessage(Message msg) {
         if (msg.senderId != -1)
-            System.out.println("Message received from NODE " + msg.senderId);
+            System.out.println("[SERVER] Message received from Node " + msg.senderId);
         // Message Handler
 
         if (msg.messageType == MessageType.APPLICATION) {
@@ -35,42 +35,45 @@ public class Server {
             if (node.pem_passive && node.custom_end == node.neighbours.get(node.id).size())
                 node.printNodeVectorClock();
 
+        } else if (msg.messageType == MessageType.MARKER) {
+
+            System.out.println("[SERVER] Message type: MARKER");
+            try {
+                node.snapshot.receiveMarkerMessageFromParent(msg);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if (msg.messageType == MessageType.MARKER_REJECTION) {
+            System.out.println("[SERVER] Message type: MARKER_REJECTION");
+            try {
+                node.snapshot.receiveMarkerRejectionMessage(msg);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if (msg.messageType == MessageType.MARKER_REPLY) {
+
+            System.out.println("[SERVER] Message type: MARKER_REPLY");
+            try {
+                node.snapshot.receiveMarkerRepliesFromChildren(msg);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if (msg.messageType == MessageType.END_SNAPSHOT) {
+
+            System.out.println("[SERVER] Message type: END_SNAPSHOT");
+            try {
+                node.snapshot.receiveSnapshotResetMessage(msg);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
-        /*
-         * case MessageType.MARKER:
-         * 
-         * System.out.println("[MARKER : received] Received MARKER message from NODE: "
-         * + msg.senderId);
-         * // this.app.snapshot.receiveMarkerMessageFromParent(msg);
-         * break;
-         * case MessageType.MARKER_REJECTION:
-         * System.out.println(
-         * "[MARKER_REJECTION : received] Received MARKER_REJECTION message from " +
-         * msg.senderId);
-         * // this.app.snapshot.receiveMarkerRejectionMessage(msg);
-         * break;
-         * case MessageType.MARKER_REPLY:
-         * 
-         * System.out.
-         * println("[MARKER_REPLY : received] Received MARKER_REPLY message from " +
-         * msg.senderId);
-         * // this.app.snapshot.receiveMarkerRepliesFromChildren(msg);
-         * break;
-         * case MessageType.END_SNAPSHOT:
-         * 
-         * System.out.
-         * println("[END_SNAPSHOT: received] Received END_SNAPSHOT message from " +
-         * msg.senderId);
-         * // this.app.snapshot.receiveSnapshotResetMessage(msg);
-         * break;
-         * }
-         */
+
     }
 
     public void listen() {
         try {
             this.server = new ServerSocket(port);
-            System.out.println("Node Server started at port: " + port);
+            System.out.println("[SERVER] Started @ port: " + port);
 
             while (true) {
                 Socket client = server.accept();
@@ -92,7 +95,7 @@ public class Server {
                                     handleMessage(msg);
                                 }
                             } catch (EOFException e) {
-                                System.out.println("[ERR] Connection closed by client");
+                                System.out.println("[SERVER] Connection closed by client");
                                 break;
                             } catch (IOException | ClassNotFoundException e) {
                                 e.printStackTrace();
@@ -116,7 +119,7 @@ public class Server {
 
     public void init() {
         Thread server = new Thread(() -> {
-            System.out.println("Node Server Starting...");
+            System.out.println("[SERVER] Starting...");
             try {
                 node.server.listen();
             } catch (Exception e) {

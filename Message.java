@@ -42,7 +42,7 @@ public class Message implements Serializable {
         this.messageType = MessageType.MARKER_REJECTION;
     }
 
-    public Message(int senderId, int n) {
+    public Message(int senderId, int senderId1) {
         this.messageType = MessageType.CUSTOM_END;
     }
 
@@ -57,6 +57,7 @@ public class Message implements Serializable {
     }
 
     public Message(String message, Set<Integer> parents) {
+        this.messageType = MessageType.END_SNAPSHOT;
         this.message = message;
         this.parents = parents;
     }

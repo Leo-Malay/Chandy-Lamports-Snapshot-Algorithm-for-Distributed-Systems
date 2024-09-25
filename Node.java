@@ -59,11 +59,14 @@ public class Node {
         node.printNodeConfig();
         node.printNodeNeighbours();
 
+        // Chandy Lamport Protocol
+        node.snapshot = new ChandyLamport(node);
+
         // Server
         node.server = new Server(node.getPort(), node);
         node.server.init();
         try {
-            System.out.println("Waiting for 10sec other node.server to setup");
+            System.out.println("[SERVER] Loading... Wait 10s");
             Thread.sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -71,19 +74,17 @@ public class Node {
         // Client
         node.client = new Client(node);
         try {
-            System.out.println("Waiting for 10sec other node.client to setup");
+            System.out.println("[CLIENT] Loading... Wait 10s");
             Thread.sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         node.client.init();
 
-        // Chandy Lamport Protocol
-        node.snapshot = new ChandyLamport(node);
+        // Starting Chandy Lamport
         try {
             if (node.id == 0) {
                 node.snapshot.initSpanningTree();
-                System.out.println("Chandy Lamport protocol initiated");
             }
 
         } catch (Exception e) {
@@ -135,8 +136,6 @@ public class Node {
                     // String node_Host = nodeConf[1];
                     String node_Host = nodeConf[1] + ".utdallas.edu";
                     int node_Port = Integer.parseInt(nodeConf[2]);
-
-                    System.out.println("NodeName: " + localHost + " | ReadName: " + node_Host);
                     if (this.id == -1 && node_Host.equals(localHost)) {
                         this.id = node_Id;
                     }

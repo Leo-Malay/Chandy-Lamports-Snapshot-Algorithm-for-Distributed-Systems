@@ -13,23 +13,24 @@ public class ChandyLamport {
     public int markersSent = 0;
     public int markerReceived = 0;
 
-    public ProcessColor PROCESS_COLOR;
+    public int msgSent = 0;
+    public int msgReceived = 0;
 
-    private Map<Integer, Vector<Integer>> localSnapshots = new HashMap<>();
-    private int msgSent = 0;
-    private int msgReceived = 0;
-    private boolean localState;
+    public ProcessColor color;
+
+    public Map<Integer, Vector<Integer>> localSnapshots = new HashMap<>();
+    public boolean localState;
 
     public ChandyLamport(Node node) {
         this.node = node;
-        this.PROCESS_COLOR = ProcessColor.BLUE;
+        this.color = ProcessColor.BLUE;
         this.localState = false;
     }
 
-    private void resetSnapshot() {
+    public void resetSnapshot() {
         this.markersSent = 0;
         this.markerReceived = 0;
-        this.PROCESS_COLOR = ProcessColor.BLUE;
+        this.color = ProcessColor.BLUE;
         this.localState = false;
         this.localSnapshots = new HashMap<>();
         this.msgSent = 0;
@@ -37,78 +38,40 @@ public class ChandyLamport {
     }
 
     public void initSpanningTree() throws Exception {
-        System.out.println("[INITIATE] Initiating Snapshot Spanning process at NODE: " + this.node.id);
+        System.out.println("[INIT] Snapshot Spanning process at NODE: " + this.node.id);
 
-        this.PROCESS_COLOR = ProcessColor.RED;
+        this.color = ProcessColor.RED;
 
         this.snapshotStatus();
         // System.out.println("[TRACE] Channels are "+node.idToChannelMap);
         for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
-
             Socket channel = entry.getValue();
-
             Message msg = new Message(node.id); // MARKER Message Constructor
-            System.out.println("[TRACE] Sending MessageType of " + msg.messageType + " to " + entry.getKey());
+            System.out.println("[TRACE] Sending " + msg.messageType + " to " + entry.getKey());
             Client.sendMsg(msg, channel, node);
             this.markersSent += 1;
         }
     }
 
     public void snapshotStatus() {
-        System.out.println();
-        System.out.println("[PROCESS COLOR]: " + this.PROCESS_COLOR);
-        System.out.println(String.format("[SNAPSHOT DEBUG] MARKERS Sent=%d | REPLIES Received=%d", this.markersSent,
-                this.markerReceived));
-        System.out.println();
-    }
-
-    public void receiveSnapshotResetMessage(Message resetMessage) throws Exception {
-        if (this.PROCESS_COLOR == ProcessColor.BLUE) {
-            System.out.println("[END_SNAPSHOT: rejected] Rejected END_SNAPSHOT at " + node.id);
-            return;
-        }
-
-        this.resetSnapshot();
-        System.out.println("[RESET SNAPSHOT] This node is set to BLUE");
-
-        for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
-            if (entry.getKey() == 0 || resetMessage.parents.contains(entry.getKey())) {
-                System.out.println("[REFRAIN] Refraining from sending end snapshot message to Node " + entry.getKey());
-            }
-            Socket channel = entry.getValue();
-
-            Set<Integer> parents = new HashSet<>(resetMessage.parents);
-            parents.add(this.node.id);
-            Message msg = new Message(resetMessage.message, parents); // RESET SNAPSHOT Message Constructor
-            synchronized (node) {
-                Client.sendMsg(msg, channel, node);
-            }
-        }
-    }
-
-    public void receiveMarkerRejectionMessage(Message markerRejectionMsg) throws Exception {
-        // System.out.println("[COLOR]: "+this.PROCESS_COLOR);
-        this.markerReceived += 1;
-        checkTreeCollapseStatus();
-        // System.out.println(String.format("[REJECTION ARRIVED] NODE:%d Rejected you
-        // marker message", markerRejectionMsg.senderId));
-
+        System.out.println("[PROCESS COLOR]: " + this.color);
+        System.out.println(String.format("[SNAPSHOT] MARKERS Sent=%d | REPLIES Received=%d", markersSent,
+                markerReceived));
     }
 
     public void receiveMarkerMessageFromParent(Message marker) throws Exception {
-        // System.out.println("[COLOR]: "+this.PROCESS_COLOR);
+        // System.out.println("[COLOR]: "+this.color);
 
-        if (this.PROCESS_COLOR == ProcessColor.RED) {
+        if (this.color == ProcessColor.RED) {
             Message rejectMarker = new Message();
             Socket channel = this.node.idToChannelMap.get(marker.senderId);
             Client.sendMsg(rejectMarker, channel, node);
-            System.out.println(
-                    String.format("[MARKER REJECTED] MARKER message from NODE-%d is rejected.", marker.senderId));
+            System.out.println("[REJECTED] MARKER message from NODE-" + marker.senderId);
             // snapshotStatus();
             return;
         }
 
-        this.PROCESS_COLOR = ProcessColor.RED;
+        this.color = ProcessColor.RED;
         this.parentId = marker.senderId;
 
         for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
@@ -121,10 +84,40 @@ public class ChandyLamport {
             }
         }
 
-        System.out
-                .println(String.format("[MARKER ACCEPTED] MARKER message from NODE-%d is accepted.", marker.senderId));
+        System.out.println("[ACCEPTED] MARKER message from NODE-" + marker.senderId);
         // snapshotStatus();
         checkTreeCollapseStatus();
+    }
+
+    public void receiveMarkerRejectionMessage(Message markerRejectionMsg) throws Exception {
+        this.markerReceived += 1;
+        checkTreeCollapseStatus();
+    }
+
+    public void receiveSnapshotResetMessage(Message resetMessage) throws Exception {
+        if (this.color == ProcessColor.BLUE) {
+            // System.out.println("[REJECTED] END_SNAPSHOT from" + node.id);
+            return;
+        }
+        synchronized (node) {
+            this.resetSnapshot();
+        }
+        System.out.println("[SNAPSHOT] Snapshot Reset");
+
+        for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
+            if (entry.getKey() == 0 || resetMessage.parents.contains(entry.getKey())) {
+                System.out.println("[REFRAIN] Refraining from sending end snapshot message to Node " + entry.getKey());
+                continue;
+            }
+            Socket channel = entry.getValue();
+
+            Set<Integer> parents = new HashSet<>(resetMessage.parents);
+            parents.add(this.node.id);
+            Message msg = new Message(resetMessage.message, parents); // RESET SNAPSHOT Message Constructor
+            synchronized (node) {
+                Client.sendMsg(msg, channel, node);
+            }
+        }
     }
 
     public void receiveMarkerRepliesFromChildren(Message markerReply) throws Exception {
@@ -140,22 +133,21 @@ public class ChandyLamport {
 
         this.markerReceived++;
         System.out.println("[MARKER REPLY ACCEPTED]");
-        // snapshotStatus();
+        snapshotStatus();
 
         checkTreeCollapseStatus();
         // System.out.println("[CHANNEL INPUT RESPONSE] MARKER_REPLY message is
         // handled");
     };
 
-    private void checkTreeCollapseStatus() throws Exception {
-        // System.out.println("[COLLAPSE] Tree collapse identified at
-        // NODE:"+this.node.id);
+    public void checkTreeCollapseStatus() throws Exception {
+        System.out.println("[COLLAPSE] Tree collapse identified at NODE:" + this.node.id);
         if (this.markersSent == this.markerReceived) {
             this.localSnapshots.put(this.node.id, node.clock);
             this.msgSent += this.node.msgSent;
             this.msgReceived += this.node.msgReceived;
             if (this.node.state == true) {
-                // System.out.println("[ALERT] Node is still active");
+                System.out.println("[ALERT] Node is still active");
                 this.localState = true;
             }
 
@@ -172,12 +164,13 @@ public class ChandyLamport {
                     this.msgSent,
                     this.msgReceived);
             Client.sendMsg(markerReplyMsg, this.node.idToChannelMap.get(this.parentId), node);
+        } else {
+            System.out.println("Waiting for SENT and RECEIVE to be EQUAL");
         }
-        ;
 
     }
 
-    private void handleConvergence() throws Exception {
+    public void handleConvergence() throws Exception {
         System.out.println("[CONVERGENCE] Euler Traversal successfully completed at node 0.");
         System.out.println("[CONVERGENCE] Local Snapshots = " + this.localSnapshots);
         System.out.println("[CONVERGENCE] Total messages sent = " + this.msgSent);
@@ -188,15 +181,14 @@ public class ChandyLamport {
         // this.initiateDemarkationProcess();
     }
 
-    private void initiateSnapshotReset() throws Exception {
-        System.out.println("[INITIATE] Initiating Snapshot Reset Process resetting snapshot states for all nodes");
+    public void initiateSnapshotReset() throws Exception {
+        System.out.println("[INIT] Snapshot Reset");
 
-        this.PROCESS_COLOR = ProcessColor.BLUE;
+        this.color = ProcessColor.BLUE;
 
         Boolean TERMINATED = false;
 
         for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
-
             Socket channel = entry.getValue();
 
             String messageText;
@@ -209,27 +201,23 @@ public class ChandyLamport {
 
             Set<Integer> parents = new HashSet<>();
             parents.add(0);
-
             Message msg = new Message(messageText, parents); // END_SNAPSHOT Message Constructor
             synchronized (node) {
                 Client.sendMsg(msg, channel, node);
             }
         }
-        ;
 
         this.resetSnapshot();
 
         if (node.id == 0 && !TERMINATED) {
-            System.out.println("[SNAPSHOT START] Initiating new Snapshot Process.");
+            System.out.println("[SNAPSHOT] Not Terminated");
             try {
-                System.out.println(String.format(
-                        "[SNAPSHOT PROCESS SLEEPING] Sleeping for %d(ms) seconds to allow other nodes wake other nodes...",
-                        this.node.snapshotDelay));
+                System.out.println("[SNAPSHOT] Process delayed for " + node.snapshotDelay);
                 Thread.sleep(this.node.snapshotDelay);
+                initSpanningTree();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            // this.initSpanningTree();
         } else {
             System.out.println("SNAPSHOT PROTOCOL DETECTED TERMINATION. NOT FURTHER SPANNING;");
         }

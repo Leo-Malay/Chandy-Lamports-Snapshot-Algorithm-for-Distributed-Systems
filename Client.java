@@ -15,7 +15,7 @@ public class Client {
     }
 
     public List<Socket> connectChannels(Node node) {
-        System.out.println("[INFO] Making Client Channel Array....");
+        System.out.println("[CLIENT] Making channel array...");
         List<Socket> channelList = new ArrayList<>();
         for (Integer neighbour : node.neighbours.get(node.id)) {
             String host = node.getHost(neighbour);
@@ -26,9 +26,9 @@ public class Client {
                 client.setKeepAlive(true);
                 channelList.add(client);
                 node.idToChannelMap.put(node.hostToId_PortMap.get(host).get(0), client);
-                System.out.println("Connected to " + host + ":" + port);
+                System.out.println("[CLIENT] Connected to " + host + ":" + port);
             } catch (IOException error) {
-                System.out.println("[ERR] Unable to connect to " + host + ":" + port);
+                System.out.println("[CLIENT] Unable to connect to " + host + ":" + port);
             }
         }
         return channelList;
@@ -37,7 +37,7 @@ public class Client {
     public void mapProtocol() {
         while (true) {
             if (node.msgSent >= node.maxNumber) {
-                System.out.println("NODE STATE (ACTIVE -> PASSIVE) Permanently");
+                System.out.println("[CLIENT] Node state (ACTIVE -> PASSIVE) permanently...");
                 node.state = false;
                 sendCustomEnd();
                 node.pem_passive = true;
@@ -52,9 +52,8 @@ public class Client {
                 }
             } else {
                 try {
-                    System.out
-                            .println(String.format("NODE STATE (ACTIVE -> PASSIVE) after sending %d messages out of %d",
-                                    node.msgSent, node.maxNumber));
+                    System.out.println("[CLIENT] Node state (ACTIVE -> PASSIVE) after sending " + node.msgSent + "/"
+                            + node.maxNumber + " messages");
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -65,7 +64,8 @@ public class Client {
 
     public void sendBulkMsg(int count) {
 
-        System.out.println(String.format("Sending %d messages to neighbours...", count));
+        // System.out.println(String.format("Sending %d messages to neighbours...",
+        // count));
         Random random = new Random();
 
         for (int i = 0; i < count; i++) {
@@ -75,11 +75,10 @@ public class Client {
             }
             int randomNumber = random.nextInt(this.channelList.size());
             int destination = node.neighbours.get(node.id).get(randomNumber);
-            System.out.println("Sent a message to " + destination);
+            // System.out.println("Sent a message to " + destination);
             node.sndClk.set(destination, node.sndClk.get(destination) + 1);
             Socket channel = channelList.get(randomNumber);
-            String messageString = String.format(
-                    "Hello NODE from %s! (%d/%d)", node.name, node.msgSent + 1, node.maxNumber);
+            String messageString = "Hello " + node.name + " (" + node.msgSent + 1 + "/" + node.maxNumber + ")";
             Message msg = new Message(node.id, node.clock, messageString);
             Client.sendMsg(msg, channel, node);
 
@@ -95,7 +94,7 @@ public class Client {
 
     public void sendCustomEnd() {
         for (Socket channel : this.channelList) {
-            Message msg = new Message(node.id, 0);
+            Message msg = new Message(node.id, node.id);
             Client.sendMsg(msg, channel, node);
         }
 
@@ -110,7 +109,6 @@ public class Client {
     }
 
     public static void sendMsg(Message msg, Socket channel, Node node) {
-
         try {
             OutputStream outStream = channel.getOutputStream();
             DataOutputStream dataOut = new DataOutputStream(outStream);
@@ -132,12 +130,12 @@ public class Client {
 
     public void init() {
         Thread client = new Thread(() -> {
-            System.out.println("Node Client Starting...");
+            System.out.println("[CLIENT] Starting...");
             try {
                 if (node.id == 0) {
                     node.changeState();
                 }
-                System.out.println("NODE Init Map Protocol...");
+                System.out.println("[CLIENT] Init Map Protocol...");
                 node.client.mapProtocol();
             } catch (Exception e) {
                 e.printStackTrace();
