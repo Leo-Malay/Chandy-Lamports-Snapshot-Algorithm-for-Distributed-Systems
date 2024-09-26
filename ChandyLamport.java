@@ -2,7 +2,7 @@ import java.util.*;
 import java.io.*;
 import java.net.*;
 
-enum ProcessColor {
+enum Color {
     BLUE, RED
 };
 
@@ -16,33 +16,33 @@ public class ChandyLamport {
     public int msgSent = 0;
     public int msgReceived = 0;
 
-    public ProcessColor color;
+    public Color color;
 
     public Map<Integer, Vector<Integer>> localSnapshots = new HashMap<>();
-    public boolean localState;
+    public boolean state;
 
     public ChandyLamport(Node node) {
         this.node = node;
-        this.color = ProcessColor.BLUE;
-        this.localState = false;
+        this.color = Color.BLUE;
+        this.state = false;
     }
 
-    public void resetSnapshot() {
-        this.markersSent = 0;
+    public void reset() {
+        this.state = false;
+        this.color = Color.BLUE;
         this.markerReceived = 0;
-        this.color = ProcessColor.BLUE;
-        this.localState = false;
-        this.localSnapshots = new HashMap<>();
+        this.markersSent = 0;
         this.msgSent = 0;
         this.msgReceived = 0;
+        this.localSnapshots = new HashMap<>();
     }
 
     public void initSpanningTree() throws Exception {
         System.out.println("[INIT] Snapshot Spanning process at NODE: " + this.node.id);
 
-        this.color = ProcessColor.RED;
+        this.color = Color.RED;
 
-        this.snapshotStatus();
+        this.printStatus();
         // System.out.println("[TRACE] Channels are "+node.idToChannelMap);
         for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
             Socket channel = entry.getValue();
@@ -53,25 +53,25 @@ public class ChandyLamport {
         }
     }
 
-    public void snapshotStatus() {
-        System.out.println("[PROCESS COLOR]: " + this.color);
-        System.out.println(String.format("[SNAPSHOT] MARKERS Sent=%d | REPLIES Received=%d", markersSent,
-                markerReceived));
+    public void printStatus() {
+        System.out.println("========== Snapshot Status ==========");
+        System.out.println("Color: " + color);
+        System.out.println("MARKERS Sent: " + markersSent);
+        System.out.println("MARKERS Received:" + markerReceived);
+        System.out.println("====================================\n");
     }
 
     public void receiveMarkerMessageFromParent(Message marker) throws Exception {
-        // System.out.println("[COLOR]: "+this.color);
-
-        if (this.color == ProcessColor.RED) {
+        if (this.color == Color.RED) {
             Message rejectMarker = new Message();
             Socket channel = this.node.idToChannelMap.get(marker.senderId);
             Client.sendMsg(rejectMarker, channel, node);
             System.out.println("[REJECTED] MARKER message from NODE-" + marker.senderId);
-            // snapshotStatus();
+            // printStatus();
             return;
         }
 
-        this.color = ProcessColor.RED;
+        this.color = Color.RED;
         this.parentId = marker.senderId;
 
         for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
@@ -85,22 +85,22 @@ public class ChandyLamport {
         }
 
         System.out.println("[ACCEPTED] MARKER message from NODE-" + marker.senderId);
-        // snapshotStatus();
-        checkTreeCollapseStatus();
+        // printStatus();
+        checkTreeCollapse();
     }
 
-    public void receiveMarkerRejectionMessage(Message markerRejectionMsg) throws Exception {
+    public void receiveMarkerRejectionMsg(Message markerRejectionMsg) throws Exception {
         this.markerReceived += 1;
-        checkTreeCollapseStatus();
+        checkTreeCollapse();
     }
 
-    public void receiveSnapshotResetMessage(Message resetMessage) throws Exception {
-        if (this.color == ProcessColor.BLUE) {
+    public void receiveSnapshotResetMsg(Message resetMessage) throws Exception {
+        if (this.color == Color.BLUE) {
             // System.out.println("[REJECTED] END_SNAPSHOT from" + node.id);
             return;
         }
         synchronized (node) {
-            this.resetSnapshot();
+            this.reset();
         }
         System.out.println("[SNAPSHOT] Snapshot Reset");
 
@@ -120,7 +120,7 @@ public class ChandyLamport {
         }
     }
 
-    public void receiveMarkerRepliesFromChildren(Message markerReply) throws Exception {
+    public void receiveMarkerRepliesFromChild(Message markerReply) throws Exception {
 
         this.localSnapshots.putAll(markerReply.localSnapshots);
 
@@ -128,63 +128,61 @@ public class ChandyLamport {
         this.msgReceived += markerReply.messagesReceived;
 
         if (markerReply.state == true) {
-            this.localState = true;
+            this.state = true;
         }
 
         this.markerReceived++;
         System.out.println("[MARKER REPLY ACCEPTED]");
-        snapshotStatus();
+        printStatus();
 
-        checkTreeCollapseStatus();
+        checkTreeCollapse();
         // System.out.println("[CHANNEL INPUT RESPONSE] MARKER_REPLY message is
         // handled");
     };
 
-    public void checkTreeCollapseStatus() throws Exception {
-        System.out.println("[COLLAPSE] Tree collapse identified at NODE:" + this.node.id);
-        if (this.markersSent == this.markerReceived) {
-            this.localSnapshots.put(this.node.id, node.clock);
-            this.msgSent += this.node.msgSent;
-            this.msgReceived += this.node.msgReceived;
-            if (this.node.state == true) {
+    public void checkTreeCollapse() throws Exception {
+        System.out.println("[COLLAPSE] Tree collapse at Node-" + node.id);
+        if (markersSent == markerReceived) {
+            this.localSnapshots.put(node.id, node.clock);
+            this.msgSent += node.msgSent;
+            this.msgReceived += node.msgReceived;
+            if (node.state == true) {
                 System.out.println("[ALERT] Node is still active");
-                this.localState = true;
+                this.state = true;
             }
 
-            writeOutput(this.node.id, this.node.clock);
+            writeOutput(node.id, node.clock);
 
-            if (this.node.id == 0) {
+            if (node.id == 0) {
                 handleConvergence();
                 return;
             }
             Message markerReplyMsg = new Message(
-                    this.node.id,
-                    this.localSnapshots,
-                    this.localState,
-                    this.msgSent,
-                    this.msgReceived);
-            Client.sendMsg(markerReplyMsg, this.node.idToChannelMap.get(this.parentId), node);
-        } else {
-            System.out.println("Waiting for SENT and RECEIVE to be EQUAL");
+                    node.id,
+                    localSnapshots,
+                    state,
+                    msgSent,
+                    msgReceived);
+            Client.sendMsg(markerReplyMsg, node.idToChannelMap.get(parentId), node);
         }
 
     }
 
     public void handleConvergence() throws Exception {
-        System.out.println("[CONVERGENCE] Euler Traversal successfully completed at node 0.");
-        System.out.println("[CONVERGENCE] Local Snapshots = " + this.localSnapshots);
-        System.out.println("[CONVERGENCE] Total messages sent = " + this.msgSent);
-        System.out.println("[CONVERGENCE] Total messages received = " + this.msgReceived);
-        System.out.println("[CONVERGENCE] Node state gathered = " + this.localState);
-        verifyConsistency(this.localSnapshots, this.node.totalNodes);
-        this.initiateSnapshotReset();
-        // this.initiateDemarkationProcess();
+        System.out.println("===============  Convergence  ===============");
+        System.out.println("Snapshots(Local):   " + localSnapshots);
+        System.out.println("Messages sent:      " + msgSent);
+        System.out.println("Messages received:  " + msgReceived);
+        System.out.println("States gathered:    " + state);
+        System.out.println("=============================================\n");
+        verifyConsistency(localSnapshots, node.totalNodes);
+        this.initSnapshotReset();
     }
 
-    public void initiateSnapshotReset() throws Exception {
+    public void initSnapshotReset() throws Exception {
         System.out.println("[INIT] Snapshot Reset");
 
-        this.color = ProcessColor.BLUE;
+        this.color = Color.BLUE;
 
         Boolean TERMINATED = false;
 
@@ -192,10 +190,10 @@ public class ChandyLamport {
             Socket channel = entry.getValue();
 
             String messageText;
-            if (this.localState == true || this.msgSent != this.msgReceived) {
-                messageText = "**** SYSTEM IS NOT TERMINATED ****";
+            if (this.state == true || this.msgSent != this.msgReceived) {
+                messageText = "System not terminated";
             } else {
-                messageText = "**** YOU ARE TERMINATED ****";
+                messageText = "System terminated";
                 TERMINATED = true;
             }
 
@@ -207,7 +205,7 @@ public class ChandyLamport {
             }
         }
 
-        this.resetSnapshot();
+        this.reset();
 
         if (node.id == 0 && !TERMINATED) {
             System.out.println("[SNAPSHOT] Not Terminated");
@@ -219,11 +217,14 @@ public class ChandyLamport {
                 e.printStackTrace();
             }
         } else {
-            System.out.println("SNAPSHOT PROTOCOL DETECTED TERMINATION. NOT FURTHER SPANNING;");
+            System.out.println("[SNAPSHOT]: Terminated");
         }
     }
 
-    // Additional Helper Functions
+    /**
+     * This function is used to verfiy the consistency of the all the gathered
+     * states
+     */
     public static void verifyConsistency(Map<Integer, Vector<Integer>> gatheredLocalSnapshots, int n) {
         boolean consistent = true;
 
@@ -242,29 +243,28 @@ public class ChandyLamport {
                     }
                 }
             }
-            ;
         }
-        ;
 
-        if (consistent) {
-            System.out.println("**************** CONSISTENCY VERIFIED ****************");
-        } else {
-            System.out.println("**************** CONSISTENCY FAILED ****************");
-        }
+        System.out.println("================================");
+        System.out.println("Conistency:  " + (consistent ? "VERIFIED" : "INVALID"));
+        System.out.println("================================\n");
     }
 
+    /**
+     * This function is used for writing clock value to output file
+     */
     public static void writeOutput(int nodeId, Vector<Integer> clock) throws Exception {
-
-        String filename = String.format("config-%d.out", nodeId);
-
+        // Specifying dynamic name for file
+        String filename = "config-" + nodeId + ".out";
+        // Opening file or creating if not exist
         FileOutputStream stream = new FileOutputStream(filename, true);
         PrintWriter writer = new PrintWriter(stream);
-
+        // Writing clock in the file
         for (Integer i : clock) {
-            writer.print(i);
-            writer.print(" ");
+            writer.print(i + " ");
         }
         writer.println();
+        // Closing file object
         writer.close();
         stream.close();
     }

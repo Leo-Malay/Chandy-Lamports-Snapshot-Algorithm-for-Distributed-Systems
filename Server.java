@@ -46,7 +46,7 @@ public class Server {
         } else if (msg.messageType == MessageType.MARKER_REJECTION) {
             System.out.println("[SERVER] Message type: MARKER_REJECTION");
             try {
-                node.snapshot.receiveMarkerRejectionMessage(msg);
+                node.snapshot.receiveMarkerRejectionMsg(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -54,7 +54,7 @@ public class Server {
 
             System.out.println("[SERVER] Message type: MARKER_REPLY");
             try {
-                node.snapshot.receiveMarkerRepliesFromChildren(msg);
+                node.snapshot.receiveMarkerRepliesFromChild(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -62,7 +62,7 @@ public class Server {
 
             System.out.println("[SERVER] Message type: END_SNAPSHOT");
             try {
-                node.snapshot.receiveSnapshotResetMessage(msg);
+                node.snapshot.receiveSnapshotResetMsg(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             }
