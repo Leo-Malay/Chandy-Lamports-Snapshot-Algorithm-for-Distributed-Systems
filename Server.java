@@ -18,8 +18,8 @@ public class Server {
     }
 
     public void handleMessage(Message msg) {
-        if (msg.senderId != -1)
-            System.out.println("[SERVER] Message received from Node " + msg.senderId);
+        if (msg.id != -1)
+            System.out.println("[SERVER] Message received from Node " + msg.id);
         // Message Handler
 
         if (msg.messageType == MessageType.APPLICATION) {
@@ -28,7 +28,7 @@ public class Server {
                 int value = Math.max(node.clock.get(i), msg.clock.get(i));
                 node.clock.set(i, value);
             }
-            node.rcvClk.set(msg.senderId, node.rcvClk.get(msg.senderId) + 1);
+            node.rcvClk.set(msg.id, node.rcvClk.get(msg.id) + 1);
             node.msgReceived += 1;
         } else if (msg.messageType == MessageType.CUSTOM_END) {
             node.custom_end++;
@@ -39,14 +39,14 @@ public class Server {
 
             System.out.println("[SERVER] Message type: MARKER");
             try {
-                node.snapshot.receiveMarkerMessageFromParent(msg);
+                node.snapshot.handleMarkerMessageFromParent(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             }
         } else if (msg.messageType == MessageType.MARKER_REJECTION) {
             System.out.println("[SERVER] Message type: MARKER_REJECTION");
             try {
-                node.snapshot.receiveMarkerRejectionMsg(msg);
+                node.snapshot.handleMarkerRejectionMsg(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -54,7 +54,7 @@ public class Server {
 
             System.out.println("[SERVER] Message type: MARKER_REPLY");
             try {
-                node.snapshot.receiveMarkerRepliesFromChild(msg);
+                node.snapshot.handleMarkerRepliesFromChild(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -62,7 +62,7 @@ public class Server {
 
             System.out.println("[SERVER] Message type: END_SNAPSHOT");
             try {
-                node.snapshot.receiveSnapshotResetMsg(msg);
+                node.snapshot.handleSnapshotResetMsg(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             }

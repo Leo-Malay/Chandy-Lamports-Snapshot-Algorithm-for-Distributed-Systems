@@ -7,53 +7,47 @@ enum MessageType {
     MARKER_REPLY,
     MARKER_REJECTION,
     END_SNAPSHOT,
-    DEMARKER,
-    DEMARKER_REPLY,
-    DEMARKER_REJECTION,
     CUSTOM_END
 };
 
 public class Message implements Serializable {
-    private static final long serialVersionUID = 1L; // For serialization
-
+    public int id = -1;
     public MessageType messageType;
-    public int senderId = -1;
-    public int messagesSent;
-    public int messagesReceived;
+
+    public int msgSent;
+    public int msgReceived;
+    
     public String message;
     public boolean state;
+    
     public Vector<Integer> clock;
-    public Map<Integer, Vector<Integer>> localSnapshots;
+    public Map<Integer, Vector<Integer>> localSs;
     public Set<Integer> parents;
 
-    public Message(int senderId, Vector<Integer> timestamp, String message) {
+    public Message(int id, Vector<Integer> timestamp, String message) {
         this.messageType = MessageType.APPLICATION;
-        this.message = message;
+        this.id = id;
         this.clock = timestamp;
-        this.senderId = senderId;
+        this.message = message;
     }
 
-    public Message(int senderId) {
+    public Message(int id) {
         this.messageType = MessageType.MARKER;
-        this.senderId = senderId;
+        this.id = id;
+    }
+
+    public Message(int id, Map<Integer, Vector<Integer>> localSs, boolean state,
+            Integer msgSent, Integer msgReceived) {
+        this.messageType = MessageType.MARKER_REPLY;
+        this.id = id;
+        this.localSs = localSs;
+        this.state = state;
+        this.msgSent = msgSent;
+        this.msgReceived = msgReceived;
     }
 
     public Message() {
         this.messageType = MessageType.MARKER_REJECTION;
-    }
-
-    public Message(int senderId, int senderId1) {
-        this.messageType = MessageType.CUSTOM_END;
-    }
-
-    public Message(int senderId, Map<Integer, Vector<Integer>> localSnapshots, boolean state,
-            Integer messagesSent, Integer messagesReceived) {
-        this.messageType = MessageType.MARKER_REPLY;
-        this.senderId = senderId;
-        this.localSnapshots = localSnapshots;
-        this.state = state;
-        this.messagesSent = messagesSent;
-        this.messagesReceived = messagesReceived;
     }
 
     public Message(String message, Set<Integer> parents) {
@@ -62,7 +56,10 @@ public class Message implements Serializable {
         this.parents = parents;
     }
 
-    // Convert current instance of Message to byte array
+    public Message(int id, int id1) {
+        this.messageType = MessageType.CUSTOM_END;
+    }
+
     public byte[] toMessageBytes() throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         try (ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)) {
@@ -71,7 +68,6 @@ public class Message implements Serializable {
         return byteArrayOutputStream.toByteArray();
     }
 
-    // Retrieve Message from byte array
     public static Message fromByteArray(byte[] data) throws IOException, ClassNotFoundException {
         try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(data);
                 ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream)) {
