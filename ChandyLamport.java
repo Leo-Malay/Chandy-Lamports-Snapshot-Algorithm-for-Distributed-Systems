@@ -56,7 +56,7 @@ public class ChandyLamport {
             System.out.println("[REJECTED] MARKER message from Node " + msg.id);
             Message rejectMarker = new Message();
             Socket channel = this.node.idToChannelMap.get(msg.id);
-            synchronized(node) {
+            synchronized (node) {
                 Client.sendMsg(rejectMarker, channel, node);
             }
             return;
@@ -68,9 +68,9 @@ public class ChandyLamport {
         for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
             Socket channel = entry.getValue();
 
-            Message msg = new Message(node.id);
+            Message msg1 = new Message(node.id);
             synchronized (node) {
-                Client.sendMsg(msg, channel, node);
+                Client.sendMsg(msg1, channel, node);
                 this.markersSent++;
             }
         }
@@ -85,14 +85,16 @@ public class ChandyLamport {
     }
 
     public void handleSnapshotResetMsg(Message msg) throws Exception {
-        if (this.color == Color.BLUE) return;
+        if (this.color == Color.BLUE)
+            return;
         synchronized (node) {
             System.out.println("[SNAPSHOT] Snapshot Reset");
             this.reset();
         }
 
         for (Map.Entry<Integer, Socket> entry : node.idToChannelMap.entrySet()) {
-            if (entry.getKey() == 0 || msg.parents.contains(entry.getKey())) continue;
+            if (entry.getKey() == 0 || msg.parents.contains(entry.getKey()))
+                continue;
             Socket channel = entry.getValue();
 
             Set<Integer> parents = new HashSet<>(msg.parents);
